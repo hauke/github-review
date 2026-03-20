@@ -5,83 +5,145 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PR #{{ pr.pr_number }} &mdash; {{ pr.title }}</title>
   <style>
+    :root {
+      --bg:             #f6f8fa;
+      --surface:        #ffffff;
+      --surface-inset:  #f6f8fa;
+      --border:         #d0d7de;
+      --text:           #1f2328;
+      --text-muted:     #656d76;
+      --text-heading:   #1f2328;
+      --accent:         #0969da;
+      --flash-err-bg:   #fff0ee;
+      --flash-err-b:    #ffb8b0;
+      --flash-err-t:    #d1242f;
+      --flash-ok-bg:    #dafbe1;
+      --flash-ok-b:     #aceebb;
+      --flash-ok-t:     #1a7f37;
+      --badge-bg:       #eaeef2;
+      --badge-border:   #d0d7de;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:             #0d1117;
+        --surface:        #161b22;
+        --surface-inset:  #0d1117;
+        --border:         #30363d;
+        --text:           #e6edf3;
+        --text-muted:     #8b949e;
+        --text-heading:   #f0f6fc;
+        --accent:         #388bfd;
+        --flash-err-bg:   #3d1a1a;
+        --flash-err-b:    #6e2b2b;
+        --flash-err-t:    #f85149;
+        --flash-ok-bg:    #1a3d2b;
+        --flash-ok-b:     #2b6e45;
+        --flash-ok-t:     #3fb950;
+        --badge-bg:       #21262d;
+        --badge-border:   #30363d;
+      }
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      min-height: 100vh;
-      padding: 2rem 1rem;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      padding: 1.25rem 1.5rem;
     }
 
-    .container { max-width: 900px; margin: 0 auto; }
+    .page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      min-height: 0;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+      flex-shrink: 0;
+    }
 
     .back-link {
-      display: inline-block;
-      font-size: 0.85rem;
-      color: #8b949e;
+      font-size: 0.82rem;
+      color: var(--text-muted);
       text-decoration: none;
-      margin-bottom: 1.5rem;
+      flex-shrink: 0;
     }
-    .back-link:hover { color: #e6edf3; }
+    .back-link:hover { color: var(--text); }
 
-    h1 { font-size: 1.3rem; font-weight: 600; color: #f0f6fc; margin-bottom: 0.25rem; }
-    .pr-subtitle { font-size: 0.88rem; color: #8b949e; margin-bottom: 2rem; }
+    h1 { font-size: 1.15rem; font-weight: 600; color: var(--text-heading); min-width: 0; }
 
-    .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+    .pr-subtitle {
+      font-size: 0.82rem; color: var(--text-muted);
+      margin-bottom: 0.75rem; flex-shrink: 0;
     }
-
-    .flash { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
-    .flash.error { background: #3d1a1a; border: 1px solid #6e2b2b; color: #f85149; }
-    .flash.success { background: #1a3d2b; border: 1px solid #2b6e45; color: #3fb950; }
-
-    .pr-meta { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1rem; }
-    .badge {
-      font-size: 0.78rem; padding: 0.2rem 0.6rem; border-radius: 20px;
-      background: #21262d; border: 1px solid #30363d; color: #8b949e;
-    }
-    .badge span { color: #e6edf3; }
-
-    .gh-link {
-      font-size: 0.82rem; color: #388bfd; text-decoration: none;
-    }
+    .gh-link { color: var(--accent); text-decoration: none; }
     .gh-link:hover { text-decoration: underline; }
 
-    .review-area {
-      width: 100%;
-      min-height: 420px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 1rem 1.2rem;
-      font-family: "Segoe UI", Roboto, sans-serif;
-      font-size: 0.9rem;
-      line-height: 1.65;
-      color: #e6edf3;
-      resize: vertical;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    .review-area:focus { border-color: #388bfd; }
-    .review-area[readonly] { color: #8b949e; cursor: default; }
+    .flash { padding: 0.65rem 1rem; border-radius: 6px; margin-bottom: 0.75rem; font-size: 0.88rem; border: 1px solid; flex-shrink: 0; }
+    .flash.error  { background: var(--flash-err-bg); border-color: var(--flash-err-b); color: var(--flash-err-t); }
+    .flash.success{ background: var(--flash-ok-bg);  border-color: var(--flash-ok-b);  color: var(--flash-ok-t); }
 
-    .section-title {
-      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.06em; color: #8b949e; margin-bottom: 0.75rem;
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      flex-shrink: 0;
+    }
+    .badge {
+      font-size: 0.75rem; padding: 0.2rem 0.65rem; border-radius: 20px;
+      background: var(--badge-bg); border: 1px solid var(--badge-border); color: var(--text-muted);
+    }
+    .badge span { color: var(--text); }
+
+    /* Review card fills all remaining vertical space */
+    .review-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .review-area {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      padding: 1.25rem 1.5rem;
+      background: var(--surface-inset);
+      border: none;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--text);
+      resize: none;
+      outline: none;
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <a class="back-link" href="/">&larr; Back to all PRs</a>
+<div class="page">
+  <div class="top-bar">
+    <a class="back-link" href="/">&larr; All PRs</a>
+    <h1>#{{ pr.pr_number }} &mdash; {{ pr.title }}</h1>
+  </div>
 
-  <h1>#{{ pr.pr_number }} &mdash; {{ pr.title }}</h1>
   <p class="pr-subtitle">
     {{ pr.owner }}/{{ pr.repo }}
     &middot;
@@ -99,16 +161,13 @@
     {% endfor %}
   {% endwith %}
 
-  <div class="card">
-    <div class="section-title">Pull Request</div>
-    <div class="pr-meta">
-      <span class="badge">Author: <span>{{ pr.author }}</span></span>
-      <span class="badge">{{ pr.head_branch }} &rarr; {{ pr.base_branch }}</span>
-      <span class="badge">Files changed: <span>{{ pr.files | length }}</span></span>
-    </div>
+  <div class="meta-bar">
+    <span class="badge">Author: <span>{{ pr.author }}</span></span>
+    <span class="badge">{{ pr.head_branch }} &rarr; {{ pr.base_branch }}</span>
+    <span class="badge">Files changed: <span>{{ pr.files | length }}</span></span>
   </div>
 
-  <div class="card">
+  <div class="review-card">
     <textarea class="review-area" readonly>{{ review }}</textarea>
   </div>
 </div>

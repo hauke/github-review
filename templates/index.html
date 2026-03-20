@@ -5,118 +5,195 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PR Reviewer</title>
   <style>
+    :root {
+      --bg:             #f6f8fa;
+      --surface:        #ffffff;
+      --surface-inset:  #f6f8fa;
+      --border:         #d0d7de;
+      --text:           #1f2328;
+      --text-muted:     #656d76;
+      --text-heading:   #1f2328;
+      --accent:         #0969da;
+      --btn-bg:         #1a7f37;
+      --btn-text:       #ffffff;
+      --flash-err-bg:   #fff0ee;
+      --flash-err-b:    #ffb8b0;
+      --flash-err-t:    #d1242f;
+      --flash-ok-bg:    #dafbe1;
+      --flash-ok-b:     #aceebb;
+      --flash-ok-t:     #1a7f37;
+      --badge-bg:       #eaeef2;
+      --badge-border:   #d0d7de;
+      --spinner-track:  #d0d7de;
+      --hover-border:   #0969da;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:             #0d1117;
+        --surface:        #161b22;
+        --surface-inset:  #0d1117;
+        --border:         #30363d;
+        --text:           #e6edf3;
+        --text-muted:     #8b949e;
+        --text-heading:   #f0f6fc;
+        --accent:         #388bfd;
+        --btn-bg:         #238636;
+        --btn-text:       #ffffff;
+        --flash-err-bg:   #3d1a1a;
+        --flash-err-b:    #6e2b2b;
+        --flash-err-t:    #f85149;
+        --flash-ok-bg:    #1a3d2b;
+        --flash-ok-b:     #2b6e45;
+        --flash-ok-t:     #3fb950;
+        --badge-bg:       #21262d;
+        --badge-border:   #30363d;
+        --spinner-track:  #30363d;
+        --hover-border:   #388bfd;
+      }
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      min-height: 100vh;
-      padding: 2rem 1rem;
+      background: var(--bg);
+      color: var(--text);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1.5rem;
     }
 
-    .container { max-width: 860px; margin: 0 auto; }
-    h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 0.25rem; color: #f0f6fc; }
-    .subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 2rem; }
+    .page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      min-height: 0;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 600; color: var(--text-heading); }
+    .subtitle { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.2rem; margin-bottom: 1.5rem; }
+    .subtitle strong { color: var(--text); }
 
     .card {
-      background: #161b22;
-      border: 1px solid #30363d;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
-    label { display: block; font-size: 0.85rem; font-weight: 500; color: #8b949e; margin-bottom: 0.4rem; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem; }
+
+    .input-row { display: flex; gap: 0.75rem; align-items: center; }
 
     input[type="text"] {
-      width: 100%;
-      padding: 0.6rem 0.8rem;
-      background: #0d1117;
-      border: 1px solid #30363d;
+      flex: 1;
+      padding: 0.55rem 0.8rem;
+      background: var(--surface-inset);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      color: #e6edf3;
-      font-size: 0.95rem;
+      color: var(--text);
+      font-size: 0.92rem;
       outline: none;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    input[type="text"]:focus { border-color: #388bfd; }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+    }
 
     .btn {
-      display: inline-block;
-      margin-top: 1rem;
-      padding: 0.55rem 1.2rem;
+      padding: 0.55rem 1.1rem;
       border: none;
       border-radius: 6px;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 500;
       cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
       transition: opacity 0.15s;
     }
     .btn:hover { opacity: 0.85; }
-    .btn-primary { background: #238636; color: #fff; }
+    .btn-primary { background: var(--btn-bg); color: var(--btn-text); }
 
-    .flash { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
-    .flash.error { background: #3d1a1a; border: 1px solid #6e2b2b; color: #f85149; }
-    .flash.success { background: #1a3d2b; border: 1px solid #2b6e45; color: #3fb950; }
+    .flash { padding: 0.65rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.88rem; border: 1px solid; }
+    .flash.error  { background: var(--flash-err-bg); border-color: var(--flash-err-b); color: var(--flash-err-t); }
+    .flash.success{ background: var(--flash-ok-bg);  border-color: var(--flash-ok-b);  color: var(--flash-ok-t); }
 
     .section-title {
-      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.06em; color: #8b949e; margin-bottom: 1rem;
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.75rem;
     }
 
     .spinner {
-      display: none; width: 18px; height: 18px;
-      border: 2px solid #30363d; border-top-color: #388bfd;
+      display: none; width: 14px; height: 14px; flex-shrink: 0;
+      border: 2px solid var(--spinner-track); border-top-color: var(--accent);
       border-radius: 50%; animation: spin 0.7s linear infinite;
-      vertical-align: middle; margin-left: 0.5rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     form.analyzing .spinner { display: inline-block; }
     form.analyzing .btn-primary { opacity: 0.6; pointer-events: none; }
 
-    /* PR list */
-    .pr-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    /* PR list — scrollable, fills remaining height */
+    .list-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .pr-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
 
     .pr-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.75rem 1rem;
-      background: #0d1117;
-      border: 1px solid #30363d;
+      padding: 0.7rem 1rem;
+      background: var(--surface-inset);
+      border: 1px solid var(--border);
       border-radius: 6px;
       text-decoration: none;
       color: inherit;
       transition: border-color 0.15s;
       gap: 1rem;
+      flex-shrink: 0;
     }
-    .pr-item:hover { border-color: #388bfd; }
+    .pr-item:hover { border-color: var(--hover-border); }
 
     .pr-item-main { flex: 1; min-width: 0; }
     .pr-item-title {
-      font-size: 0.92rem;
-      font-weight: 500;
-      color: #f0f6fc;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 0.9rem; font-weight: 500; color: var(--text-heading);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .pr-item-meta { font-size: 0.78rem; color: #8b949e; margin-top: 0.2rem; }
+    .pr-item-meta { font-size: 0.76rem; color: var(--text-muted); margin-top: 0.2rem; }
 
     .pr-item-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
     .badge {
-      font-size: 0.72rem; padding: 0.15rem 0.5rem;
-      border-radius: 20px; background: #21262d;
-      border: 1px solid #30363d; color: #8b949e; white-space: nowrap;
+      font-size: 0.7rem; padding: 0.15rem 0.5rem;
+      border-radius: 20px; background: var(--badge-bg);
+      border: 1px solid var(--badge-border); color: var(--text-muted); white-space: nowrap;
     }
 
-    .empty-state { text-align: center; color: #8b949e; font-size: 0.88rem; padding: 1.5rem 0; }
+    .empty-state { text-align: center; color: var(--text-muted); font-size: 0.88rem; padding: 1.5rem 0; }
   </style>
 </head>
 <body>
-<div class="container">
+<div class="page">
   <h1>PR Reviewer</h1>
   <p class="subtitle">
     Analyzes pull requests for
@@ -136,22 +213,23 @@
     <form method="POST" action="/analyze" id="analyzeForm"
           onsubmit="this.classList.add('analyzing')">
       <label for="pr_url">GitHub Pull Request URL</label>
-      <input type="text" id="pr_url" name="pr_url"
-             placeholder="https://github.com/owner/repo/pull/123"
-             required autocomplete="off" />
-      <button type="submit" class="btn btn-primary">
-        Analyze PR <span class="spinner"></span>
-      </button>
+      <div class="input-row">
+        <input type="text" id="pr_url" name="pr_url"
+               placeholder="https://github.com/owner/repo/pull/123"
+               required autocomplete="off" />
+        <button type="submit" class="btn btn-primary">
+          Analyze PR <span class="spinner"></span>
+        </button>
+      </div>
     </form>
   </div>
 
-  <div class="card">
+  <div class="card list-card">
     <div class="section-title">Previously Analyzed PRs</div>
     {% if past_prs %}
     <div class="pr-list">
       {% for pr in past_prs %}
-      <a class="pr-item"
-         href="/review/{{ pr.owner }}/{{ pr.repo }}/{{ pr.pr_number }}">
+      <a class="pr-item" href="/review/{{ pr.owner }}/{{ pr.repo }}/{{ pr.pr_number }}">
         <div class="pr-item-main">
           <div class="pr-item-title">#{{ pr.pr_number }} &mdash; {{ pr.title }}</div>
           <div class="pr-item-meta">
