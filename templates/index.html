@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PR Reviewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 0.25rem; color: #f0f6fc; }
+    .subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 2rem; }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    label { display: block; font-size: 0.85rem; font-weight: 500; color: #8b949e; margin-bottom: 0.4rem; }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus { border-color: #388bfd; }
+
+    .btn {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.55rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #238636; color: #fff; }
+
+    .flash { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .flash.error { background: #3d1a1a; border: 1px solid #6e2b2b; color: #f85149; }
+    .flash.success { background: #1a3d2b; border: 1px solid #2b6e45; color: #3fb950; }
+
+    .section-title {
+      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #8b949e; margin-bottom: 1rem;
+    }
+
+    .spinner {
+      display: none; width: 18px; height: 18px;
+      border: 2px solid #30363d; border-top-color: #388bfd;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-left: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    form.analyzing .spinner { display: inline-block; }
+    form.analyzing .btn-primary { opacity: 0.6; pointer-events: none; }
+
+    /* PR list */
+    .pr-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .pr-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s;
+      gap: 1rem;
+    }
+    .pr-item:hover { border-color: #388bfd; }
+
+    .pr-item-main { flex: 1; min-width: 0; }
+    .pr-item-title {
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: #f0f6fc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pr-item-meta { font-size: 0.78rem; color: #8b949e; margin-top: 0.2rem; }
+
+    .pr-item-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
+    .badge {
+      font-size: 0.72rem; padding: 0.15rem 0.5rem;
+      border-radius: 20px; background: #21262d;
+      border: 1px solid #30363d; color: #8b949e; white-space: nowrap;
+    }
+
+    .empty-state { text-align: center; color: #8b949e; font-size: 0.88rem; padding: 1.5rem 0; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>PR Reviewer</h1>
+  <p class="subtitle">
+    Analyzes pull requests for
+    {% if allowed_orgs %}
+      {% for org in allowed_orgs %}<strong>{{ org }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}
+    {% else %}<em>no organisations configured</em>{% endif %}
+    using Claude.
+  </p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="card">
+    <form method="POST" action="/analyze" id="analyzeForm"
+          onsubmit="this.classList.add('analyzing')">
+      <label for="pr_url">GitHub Pull Request URL</label>
+      <input type="text" id="pr_url" name="pr_url"
+             placeholder="https://github.com/owner/repo/pull/123"
+             required autocomplete="off" />
+      <button type="submit" class="btn btn-primary">
+        Analyze PR <span class="spinner"></span>
+      </button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Previously Analyzed PRs</div>
+    {% if past_prs %}
+    <div class="pr-list">
+      {% for pr in past_prs %}
+      <a class="pr-item"
+         href="/review/{{ pr.owner }}/{{ pr.repo }}/{{ pr.pr_number }}">
+        <div class="pr-item-main">
+          <div class="pr-item-title">#{{ pr.pr_number }} &mdash; {{ pr.title }}</div>
+          <div class="pr-item-meta">
+            {{ pr.owner }}/{{ pr.repo }}
+            &middot; by {{ pr.author }}
+            &middot; {{ pr.analyzed_at[:10] }}
+          </div>
+        </div>
+        <div class="pr-item-right">
+          <span class="badge">{{ pr.file_count }} file{{ 's' if pr.file_count != 1 }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No PRs analyzed yet.</div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>
