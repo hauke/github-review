@@ -122,6 +122,16 @@
     }
     .badge span { color: var(--text); }
 
+    .version-select {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 20px;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: var(--text);
+      cursor: pointer;
+    }
+
     /* Review card fills all remaining vertical space */
     .review-card {
       flex: 1;
@@ -181,6 +191,15 @@
     <span class="badge">Author: <span>{{ pr.author }}</span></span>
     <span class="badge">{{ pr.head_branch }} &rarr; {{ pr.base_branch }}</span>
     <span class="badge">Files changed: <span>{{ pr.files | length }}</span></span>
+    {% if versions | length > 1 %}
+    <select class="version-select" onchange="location.href='/review/{{ pr.owner }}/{{ pr.repo }}/{{ pr.pr_number }}?version=' + this.value">
+      {% for v in versions %}
+      <option value="{{ v.version_id }}" {% if v.version_id == current_version_id %}selected{% endif %}>
+        {{ v.sha7 }} &mdash; {{ v.timestamp }}{% if loop.first %} (latest){% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    {% endif %}
   </div>
 
   <div class="review-card">

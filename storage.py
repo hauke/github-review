@@ -1,8 +1,11 @@
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 REVIEWS_DIR = Path("reviews")
+
+_VERSION_RE = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{6})_([0-9a-f]{7})$")
 
 
 def _pr_dir(owner: str, repo: str, pr_number: int) -> Path:
@@ -28,23 +31,55 @@ def save_metadata(pr: dict):
     (d / "metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
-def save_ai_review(owner: str, repo: str, pr_number: int, text: str):
-    d = _pr_dir(owner, repo, pr_number)
-    d.mkdir(parents=True, exist_ok=True)
-    (d / "ai_review.md").write_text(text, encoding="utf-8")
+def save_review(owner: str, repo: str, pr_number: int, review_text: str, prompt_text: str, sha: str):
+    """Save a versioned review in a subdirectory named {timestamp}_{sha7}/."""
+    pr_dir = _pr_dir(owner, repo, pr_number)
+    pr_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%S")
+    vdir = pr_dir / f"{ts}_{sha[:7]}"
+    vdir.mkdir(exist_ok=True)
+    (vdir / "ai_review.md").write_text(review_text, encoding="utf-8")
+    (vdir / "prompt.md").write_text(prompt_text, encoding="utf-8")
 
 
-def save_prompt(owner: str, repo: str, pr_number: int, text: str):
-    d = _pr_dir(owner, repo, pr_number)
-    d.mkdir(parents=True, exist_ok=True)
-    (d / "prompt.md").write_text(text, encoding="utf-8")
+def list_review_versions(owner: str, repo: str, pr_number: int) -> list[dict]:
+    """Return all versioned reviews for a PR, sorted newest-first."""
+    pr_dir = _pr_dir(owner, repo, pr_number)
+    if not pr_dir.exists():
+        return []
+    versions = []
+    for entry in pr_dir.iterdir():
+        if not entry.is_dir():
+            continue
+        m = _VERSION_RE.match(entry.name)
+        if not m:
+            continue
+        ts_str, sha7 = m.group(1), m.group(2)
+        ts = datetime.strptime(ts_str, "%Y-%m-%dT%H%M%S").replace(tzinfo=timezone.utc)
+        versions.append({
+            "version_id": entry.name,
+            "sha7": sha7,
+            "timestamp": ts.strftime("%Y-%m-%d %H:%M") + " UTC",
+        })
+    versions.sort(key=lambda v: v["version_id"], reverse=True)
+    return versions
+
+
+def load_review_version(owner: str, repo: str, pr_number: int, version_id: str) -> dict:
+    """Load a specific review version by its version_id."""
+    vdir = _pr_dir(owner, repo, pr_number) / version_id
+    ai_path = vdir / "ai_review.md"
+    return {"ai": ai_path.read_text(encoding="utf-8") if ai_path.exists() else None}
 
 
 def load_reviews(owner: str, repo: str, pr_number: int) -> dict:
-    d = _pr_dir(owner, repo, pr_number)
-    ai_path = d / "ai_review.md"
-    ai = ai_path.read_text(encoding="utf-8") if ai_path.exists() else None
-    return {"ai": ai}
+    """Return the most recent review. Falls back to root-level files for old installs."""
+    versions = list_review_versions(owner, repo, pr_number)
+    if versions:
+        return load_review_version(owner, repo, pr_number, versions[0]["version_id"])
+    # Backward compat: pre-versioning installs wrote ai_review.md at the PR dir root
+    ai_path = _pr_dir(owner, repo, pr_number) / "ai_review.md"
+    return {"ai": ai_path.read_text(encoding="utf-8") if ai_path.exists() else None}
 
 
 def load_metadata(owner: str, repo: str, pr_number: int) -> dict | None:

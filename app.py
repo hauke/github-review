@@ -16,8 +16,9 @@ log = logging.getLogger(__name__)
 from github_pr import get_pr_data, get_pr_head_sha, parse_pr_url, validate_repo, ALLOWED_ORGS
 from analyzer import analyze_pr
 from storage import (
-    save_metadata, save_ai_review, save_prompt,
-    load_reviews, load_metadata, list_all_prs,
+    save_metadata, save_review,
+    load_reviews, load_review_version, list_review_versions,
+    load_metadata, list_all_prs,
 )
 
 app = Flask(__name__)
@@ -58,8 +59,7 @@ def _fetch_analyze_save(owner: str, repo: str, pr_number: int) -> dict:
     pr = get_pr_data(pr_url)
     review, prompt = analyze_pr(pr)
     save_metadata(pr)
-    save_ai_review(owner, repo, pr_number, review)
-    save_prompt(owner, repo, pr_number, prompt)
+    save_review(owner, repo, pr_number, review, prompt, pr["head_sha"])
     return pr
 
 
@@ -129,7 +129,18 @@ def view_review(owner, repo, pr_number):
     if not meta:
         flash("No stored review found for that PR.", "error")
         return redirect(url_for("index"))
-    stored = load_reviews(owner, repo, pr_number)
+
+    versions = list_review_versions(owner, repo, pr_number)
+    version_id = request.args.get("version")
+    if version_id:
+        if not any(v["version_id"] == version_id for v in versions):
+            flash("Review version not found.", "error")
+            return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
+        stored = load_review_version(owner, repo, pr_number, version_id)
+    else:
+        stored = load_reviews(owner, repo, pr_number)
+        version_id = versions[0]["version_id"] if versions else None
+
     # Build a minimal pr dict from metadata (no live GitHub fetch needed)
     pr = {
         "owner": meta["owner"],
@@ -148,6 +159,8 @@ def view_review(owner, repo, pr_number):
         review=stored["ai"] or "",
         stored=stored,
         meta=meta,
+        versions=versions,
+        current_version_id=version_id,
     )
 
 
