@@ -1,3 +1,4 @@
+import logging
 import os
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_limiter import Limiter
@@ -5,6 +6,12 @@ from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logging.basicConfig(
+    level=os.environ.get("LOG_LEVEL", "WARNING").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger(__name__)
 
 from github_pr import get_pr_data, get_pr_head_sha, parse_pr_url, validate_repo, ALLOWED_ORGS
 from analyzer import analyze_pr
@@ -45,16 +52,20 @@ def analyze():
         flash(str(e), "error")
         return redirect(url_for("index"))
 
-    # Skip analysis if the PR hasn't changed since the last review
+    log.info("Analysis requested: %s/%s#%d", owner, repo, pr_number)
+
+    # Skip analysis if the PR head commit hasn't changed since the last review
     meta = load_metadata(owner, repo, pr_number)
     if meta and meta.get("head_sha"):
         try:
             current_sha = get_pr_head_sha(owner, repo, pr_number)
             if current_sha == meta["head_sha"]:
+                log.info("Cache hit for %s/%s#%d (sha %s)", owner, repo, pr_number, current_sha[:7])
                 flash("No changes since the last review — showing existing review.", "success")
                 return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
+            log.info("SHA changed for %s/%s#%d, running fresh analysis", owner, repo, pr_number)
         except Exception:
-            pass  # If the check fails, fall through to a fresh analysis
+            log.warning("SHA check failed for %s/%s#%d, falling through to fresh analysis", owner, repo, pr_number)
 
     try:
         pr = get_pr_data(pr_url)
@@ -62,12 +73,14 @@ def analyze():
         flash(str(e), "error")
         return redirect(url_for("index"))
     except Exception as e:
+        log.exception("Failed to fetch PR data for %s", pr_url)
         flash(f"Failed to fetch PR: {e}", "error")
         return redirect(url_for("index"))
 
     try:
         review = analyze_pr(pr)
     except Exception as e:
+        log.exception("Claude analysis failed for %s/%s#%d", owner, repo, pr_number)
         flash(f"Claude analysis failed: {e}", "error")
         return redirect(url_for("index"))
 

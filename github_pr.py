@@ -1,6 +1,9 @@
+import logging
 import os
 import re
 import requests
+
+log = logging.getLogger(__name__)
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 ALLOWED_ORGS = [
@@ -64,6 +67,8 @@ def get_pr_data(url: str) -> dict:
     )
     pr_resp.raise_for_status()
     pr = pr_resp.json()
+    log.debug("PR metadata: title=%r author=%r head=%s base=%s",
+              pr["title"], pr["user"]["login"], pr["head"]["ref"], pr["base"]["ref"])
 
     files_resp = requests.get(
         f"{API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}/files",
@@ -73,6 +78,7 @@ def get_pr_data(url: str) -> dict:
     )
     files_resp.raise_for_status()
     files = files_resp.json()
+    log.debug("Files: %d changed — %s", len(files), [f["filename"] for f in files])
 
     # Inline review comments — skip outdated ones (position is None)
     review_comments_resp = requests.get(
@@ -82,6 +88,7 @@ def get_pr_data(url: str) -> dict:
         timeout=15,
     )
     review_comments_resp.raise_for_status()
+    all_review = review_comments_resp.json()
     review_comments = [
         {
             "type": "inline",
@@ -91,9 +98,11 @@ def get_pr_data(url: str) -> dict:
             "diff_hunk": c.get("diff_hunk", ""),
             "body": c["body"],
         }
-        for c in review_comments_resp.json()
+        for c in all_review
         if c.get("position") is not None
     ]
+    log.debug("Inline review comments: %d total, %d active (non-outdated)",
+              len(all_review), len(review_comments))
 
     # General issue-level comments (never outdated)
     issue_comments_resp = requests.get(
@@ -111,8 +120,9 @@ def get_pr_data(url: str) -> dict:
         }
         for c in issue_comments_resp.json()
     ]
+    log.debug("General comments: %d", len(issue_comments))
 
-    return {
+    result = {
         "owner": owner,
         "repo": repo,
         "pr_number": pr_number,
@@ -134,3 +144,6 @@ def get_pr_data(url: str) -> dict:
         ],
         "comments": review_comments + issue_comments,
     }
+    log.debug("PR data assembled: %d files, %d comments, head_sha=%s",
+              len(result["files"]), len(result["comments"]), result["head_sha"][:7])
+    return result

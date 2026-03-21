@@ -1,6 +1,9 @@
 import datetime
+import logging
 import os
 import anthropic
+
+log = logging.getLogger(__name__)
 
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
@@ -97,11 +100,15 @@ def analyze_pr(pr: dict) -> str:
     """Send the PR data to Claude and return the review text."""
     prompt = build_prompt(pr)
     if len(prompt) > MAX_PROMPT_CHARS:
+        log.warning("Prompt truncated: %d chars > limit %d", len(prompt), MAX_PROMPT_CHARS)
         prompt = prompt[:MAX_PROMPT_CHARS] + "\n\n_[Prompt truncated: PR diff exceeded size limit.]_"
+    log.info("Sending PR #%d to Claude (%s), prompt length %d chars", pr["pr_number"], MODEL, len(prompt))
+    log.debug("Full prompt:\n%s", prompt)
     message = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
+    log.info("Claude response: %d input tokens, %d output tokens", message.usage.input_tokens, message.usage.output_tokens)
     return message.content[0].text
