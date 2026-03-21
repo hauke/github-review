@@ -72,7 +72,12 @@ def build_prompt(pr: dict) -> str:
         lines.append(
             f"\n### `{f['filename']}` ({f['status']}, +{f['additions']} -{f['deletions']})"
         )
-        if f["patch"]:
+        if f.get("full_content") is not None:
+            lines.append("_Full file content shown (patch-of-patch diff omitted to avoid misinterpretation):_")
+            lines.append("```diff")
+            lines.append(f["full_content"])
+            lines.append("```")
+        elif f["patch"]:
             lines.append("```diff")
             lines.append(f["patch"])
             lines.append("```")

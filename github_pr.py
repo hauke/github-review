@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import re
@@ -122,26 +123,43 @@ def get_pr_data(url: str) -> dict:
     ]
     log.debug("General comments: %d", len(issue_comments))
 
+    head_sha = pr["head"]["sha"]
+    built_files = []
+    for f in files:
+        entry = {
+            "filename": f["filename"],
+            "status": f["status"],
+            "additions": f["additions"],
+            "deletions": f["deletions"],
+            "patch": f.get("patch", ""),
+            "full_content": None,
+        }
+        if f["filename"].endswith(".patch") and f["status"] != "removed":
+            content_resp = requests.get(
+                f"{API_BASE}/repos/{owner}/{repo}/contents/{f['filename']}",
+                headers=_headers(),
+                params={"ref": head_sha},
+                timeout=15,
+            )
+            if content_resp.status_code == 200:
+                data = content_resp.json()
+                entry["full_content"] = base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+                log.debug("Fetched full content for %s (%d bytes)", f["filename"], len(entry["full_content"]))
+            else:
+                log.warning("Could not fetch full content for %s (status %d)", f["filename"], content_resp.status_code)
+        built_files.append(entry)
+
     result = {
         "owner": owner,
         "repo": repo,
         "pr_number": pr_number,
-        "head_sha": pr["head"]["sha"],
+        "head_sha": head_sha,
         "title": pr["title"],
         "body": pr.get("body") or "",
         "author": pr["user"]["login"],
         "base_branch": pr["base"]["ref"],
         "head_branch": pr["head"]["ref"],
-        "files": [
-            {
-                "filename": f["filename"],
-                "status": f["status"],
-                "additions": f["additions"],
-                "deletions": f["deletions"],
-                "patch": f.get("patch", ""),
-            }
-            for f in files
-        ],
+        "files": built_files,
         "comments": review_comments + issue_comments,
     }
     log.debug("PR data assembled: %d files, %d comments, head_sha=%s",
