@@ -158,6 +158,37 @@
       resize: none;
       outline: none;
     }
+
+    .prompt-details {
+      flex-shrink: 0;
+      margin-top: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .prompt-details summary {
+      padding: 0.55rem 1rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      background: var(--surface);
+    }
+    .prompt-details summary:hover { color: var(--text); }
+    .prompt-details[open] summary { border-bottom: 1px solid var(--border); }
+    .prompt-area {
+      width: 100%;
+      height: 320px;
+      padding: 1rem 1.5rem;
+      background: var(--surface-inset);
+      border: none;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      resize: vertical;
+      outline: none;
+    }
   </style>
 </head>
 <body>
@@ -205,6 +236,13 @@
   <div class="review-card">
     <textarea class="review-area" readonly>{{ review }}</textarea>
   </div>
+
+  {% if prompt %}
+  <details class="prompt-details">
+    <summary>Show prompt sent to Claude</summary>
+    <textarea class="prompt-area" readonly>{{ prompt }}</textarea>
+  </details>
+  {% endif %}
 </div>
 </body>
 </html>

@@ -69,7 +69,11 @@ def load_review_version(owner: str, repo: str, pr_number: int, version_id: str) 
     """Load a specific review version by its version_id."""
     vdir = _pr_dir(owner, repo, pr_number) / version_id
     ai_path = vdir / "ai_review.md"
-    return {"ai": ai_path.read_text(encoding="utf-8") if ai_path.exists() else None}
+    prompt_path = vdir / "prompt.md"
+    return {
+        "ai": ai_path.read_text(encoding="utf-8") if ai_path.exists() else None,
+        "prompt": prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else None,
+    }
 
 
 def load_reviews(owner: str, repo: str, pr_number: int) -> dict:
@@ -77,9 +81,14 @@ def load_reviews(owner: str, repo: str, pr_number: int) -> dict:
     versions = list_review_versions(owner, repo, pr_number)
     if versions:
         return load_review_version(owner, repo, pr_number, versions[0]["version_id"])
-    # Backward compat: pre-versioning installs wrote ai_review.md at the PR dir root
-    ai_path = _pr_dir(owner, repo, pr_number) / "ai_review.md"
-    return {"ai": ai_path.read_text(encoding="utf-8") if ai_path.exists() else None}
+    # Backward compat: pre-versioning installs wrote files at the PR dir root
+    d = _pr_dir(owner, repo, pr_number)
+    ai_path = d / "ai_review.md"
+    prompt_path = d / "prompt.md"
+    return {
+        "ai": ai_path.read_text(encoding="utf-8") if ai_path.exists() else None,
+        "prompt": prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else None,
+    }
 
 
 def load_metadata(owner: str, repo: str, pr_number: int) -> dict | None:

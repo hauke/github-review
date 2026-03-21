@@ -157,7 +157,7 @@ def view_review(owner, repo, pr_number):
         allowed_orgs=ALLOWED_ORGS,
         pr=pr,
         review=stored["ai"] or "",
-        stored=stored,
+        prompt=stored.get("prompt") or "",
         meta=meta,
         versions=versions,
         current_version_id=version_id,
