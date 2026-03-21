@@ -37,6 +37,32 @@ def index():
     return render_template("index.html", allowed_orgs=ALLOWED_ORGS, past_prs=past_prs)
 
 
+def _sha_unchanged(owner: str, repo: str, pr_number: int) -> bool:
+    """Return True if the stored head SHA matches the current PR head SHA."""
+    meta = load_metadata(owner, repo, pr_number)
+    if not (meta and meta.get("head_sha")):
+        return False
+    try:
+        return get_pr_head_sha(owner, repo, pr_number) == meta["head_sha"]
+    except Exception:
+        log.warning("SHA check failed for %s/%s#%d, treating as changed", owner, repo, pr_number)
+        return False
+
+
+def _fetch_analyze_save(owner: str, repo: str, pr_number: int) -> dict:
+    """Fetch PR data from GitHub, run Claude analysis, and persist results.
+
+    Returns the pr dict on success. Raises ValueError or RuntimeError on failure.
+    """
+    pr_url = f"https://github.com/{owner}/{repo}/pull/{pr_number}"
+    pr = get_pr_data(pr_url)
+    review, prompt = analyze_pr(pr)
+    save_metadata(pr)
+    save_ai_review(owner, repo, pr_number, review)
+    save_prompt(owner, repo, pr_number, prompt)
+    return pr
+
+
 @app.route("/analyze", methods=["POST"])
 @limiter.limit("5 per minute; 30 per hour", deduct_when=lambda r: r.status_code == 200)
 def analyze():
@@ -54,48 +80,44 @@ def analyze():
 
     log.info("Analysis requested: %s/%s#%d", owner, repo, pr_number)
 
-    # Skip analysis if the PR head commit hasn't changed since the last review
-    meta = load_metadata(owner, repo, pr_number)
-    if meta and meta.get("head_sha"):
-        try:
-            current_sha = get_pr_head_sha(owner, repo, pr_number)
-            if current_sha == meta["head_sha"]:
-                log.info("Cache hit for %s/%s#%d (sha %s)", owner, repo, pr_number, current_sha[:7])
-                flash("No changes since the last review — showing existing review.", "success")
-                return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
-            log.info("SHA changed for %s/%s#%d, running fresh analysis", owner, repo, pr_number)
-        except Exception:
-            log.warning("SHA check failed for %s/%s#%d, falling through to fresh analysis", owner, repo, pr_number)
+    if _sha_unchanged(owner, repo, pr_number):
+        log.info("Cache hit for %s/%s#%d", owner, repo, pr_number)
+        flash("No changes since the last review — showing existing review.", "success")
+        return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
 
     try:
-        pr = get_pr_data(pr_url)
+        _fetch_analyze_save(owner, repo, pr_number)
     except ValueError as e:
         flash(str(e), "error")
         return redirect(url_for("index"))
     except Exception as e:
-        log.exception("Failed to fetch PR data for %s", pr_url)
-        flash(f"Failed to fetch PR: {e}", "error")
+        log.exception("Analysis failed for %s/%s#%d", owner, repo, pr_number)
+        flash(str(e), "error")
         return redirect(url_for("index"))
+
+    return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
+
+
+@app.route("/review/<owner>/<repo>/<int:pr_number>/refresh", methods=["POST"])
+@limiter.limit("5 per minute; 30 per hour", deduct_when=lambda r: r.status_code == 200)
+def refresh_review(owner, repo, pr_number):
+    if owner.lower() not in ALLOWED_ORGS:
+        flash("Organisation not allowed.", "error")
+        return redirect(url_for("index"))
+
+    if _sha_unchanged(owner, repo, pr_number):
+        flash("No new changes in the PR since the last review.", "success")
+        return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
 
     try:
-        review, prompt = analyze_pr(pr)
+        _fetch_analyze_save(owner, repo, pr_number)
     except Exception as e:
-        log.exception("Claude analysis failed for %s/%s#%d", owner, repo, pr_number)
-        flash(f"Claude analysis failed: {e}", "error")
-        return redirect(url_for("index"))
+        log.exception("Analysis failed for %s/%s#%d", owner, repo, pr_number)
+        flash(str(e), "error")
+        return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
 
-    save_metadata(pr)
-    save_ai_review(pr["owner"], pr["repo"], pr["pr_number"], review)
-    save_prompt(pr["owner"], pr["repo"], pr["pr_number"], prompt)
-    stored = load_reviews(pr["owner"], pr["repo"], pr["pr_number"])
-
-    return render_template(
-        "review.html",
-        allowed_orgs=ALLOWED_ORGS,
-        pr=pr,
-        review=review,
-        stored=stored,
-    )
+    flash("Review updated with the latest changes.", "success")
+    return redirect(url_for("view_review", owner=owner, repo=repo, pr_number=pr_number))
 
 
 @app.route("/review/<owner>/<repo>/<int:pr_number>")

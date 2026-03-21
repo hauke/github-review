@@ -83,6 +83,19 @@
     }
     .back-link:hover { color: var(--text); }
 
+    .refresh-btn {
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 0.82rem;
+      padding: 0.3rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .refresh-btn:hover { background: var(--badge-bg); }
+
     h1 { font-size: 1.15rem; font-weight: 600; color: var(--text-heading); min-width: 0; }
 
     .pr-subtitle {
@@ -142,6 +155,9 @@
   <div class="top-bar">
     <a class="back-link" href="/">&larr; All PRs</a>
     <h1>#{{ pr.pr_number }} &mdash; {{ pr.title }}</h1>
+    <form method="post" action="/review/{{ pr.owner }}/{{ pr.repo }}/{{ pr.pr_number }}/refresh">
+      <button class="refresh-btn" type="submit">&#8635; Refresh review</button>
+    </form>
   </div>
 
   <p class="pr-subtitle">
