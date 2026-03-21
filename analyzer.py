@@ -101,8 +101,8 @@ def build_prompt(pr: dict) -> str:
     return "\n".join(lines)
 
 
-def analyze_pr(pr: dict) -> str:
-    """Send the PR data to Claude and return the review text."""
+def analyze_pr(pr: dict) -> tuple[str, str]:
+    """Send the PR data to Claude and return (review_text, prompt)."""
     prompt = build_prompt(pr)
     if len(prompt) > MAX_PROMPT_CHARS:
         log.warning("Prompt truncated: %d chars > limit %d", len(prompt), MAX_PROMPT_CHARS)
@@ -116,4 +116,4 @@ def analyze_pr(pr: dict) -> str:
         messages=[{"role": "user", "content": prompt}],
     )
     log.info("Claude response: %d input tokens, %d output tokens", message.usage.input_tokens, message.usage.output_tokens)
-    return message.content[0].text
+    return message.content[0].text, prompt

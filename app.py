@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 from github_pr import get_pr_data, get_pr_head_sha, parse_pr_url, validate_repo, ALLOWED_ORGS
 from analyzer import analyze_pr
 from storage import (
-    save_metadata, save_ai_review,
+    save_metadata, save_ai_review, save_prompt,
     load_reviews, load_metadata, list_all_prs,
 )
 
@@ -78,7 +78,7 @@ def analyze():
         return redirect(url_for("index"))
 
     try:
-        review = analyze_pr(pr)
+        review, prompt = analyze_pr(pr)
     except Exception as e:
         log.exception("Claude analysis failed for %s/%s#%d", owner, repo, pr_number)
         flash(f"Claude analysis failed: {e}", "error")
@@ -86,6 +86,7 @@ def analyze():
 
     save_metadata(pr)
     save_ai_review(pr["owner"], pr["repo"], pr["pr_number"], review)
+    save_prompt(pr["owner"], pr["repo"], pr["pr_number"], prompt)
     stored = load_reviews(pr["owner"], pr["repo"], pr["pr_number"])
 
     return render_template(

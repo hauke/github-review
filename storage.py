@@ -34,6 +34,12 @@ def save_ai_review(owner: str, repo: str, pr_number: int, text: str):
     (d / "ai_review.md").write_text(text, encoding="utf-8")
 
 
+def save_prompt(owner: str, repo: str, pr_number: int, text: str):
+    d = _pr_dir(owner, repo, pr_number)
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "prompt.md").write_text(text, encoding="utf-8")
+
+
 def load_reviews(owner: str, repo: str, pr_number: int) -> dict:
     d = _pr_dir(owner, repo, pr_number)
     ai_path = d / "ai_review.md"
